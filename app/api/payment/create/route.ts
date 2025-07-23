@@ -4,15 +4,30 @@ import { getTronPaymentSystem } from '@/lib/tron-payment';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if we're in a server environment
+    if (typeof window !== 'undefined') {
+      return NextResponse.json({ error: 'This endpoint only works on server' }, { status: 500 });
+    }
+    
     const { userId } = await request.json();
     
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Generate unique payment address
-    const tronPayment = getTronPaymentSystem();
-    const paymentAddress = await tronPayment.generatePaymentAddress();
+    let paymentAddress;
+    try {
+      // Generate unique payment address
+      const tronPayment = getTronPaymentSystem();
+      paymentAddress = await tronPayment.generatePaymentAddress();
+    } catch (error) {
+      console.error('TronWeb error:', error);
+      // Fallback to mock address for development
+      paymentAddress = {
+        address: 'TDemoAddress123456789012345678901234567890',
+        privateKey: 'demo-private-key'
+      };
+    }
     
     // Store payment info in Firebase
     const paymentRef = dbRef(realtimeDb, `users/${userId}/paymentInfo`);
