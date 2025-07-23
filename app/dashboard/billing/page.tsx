@@ -18,7 +18,7 @@ import {
 export default function Billing() {
   const { user, userProfile } = useAuth();
   const [currentPlan, setCurrentPlan] = useState('free');
-  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [paymentAddress, setPaymentAddress] = useState('');
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentStatus, setPaymentStatus] = useState('none');
@@ -306,7 +306,7 @@ export default function Billing() {
         <div className="glass p-1 rounded-xl">
           <div className="flex space-x-1">
             <button
-              onClick={() => setBillingCycle('monthly')}
+              onClick={() => setBillingCycle('monthly' as 'monthly')}
               className={`px-6 py-2 rounded-lg transition-all ${
                 billingCycle === 'monthly'
                   ? 'bg-blue-600 text-white'
@@ -316,7 +316,7 @@ export default function Billing() {
               Aylık
             </button>
             <button
-              onClick={() => setBillingCycle('yearly')}
+              onClick={() => setBillingCycle('yearly' as 'yearly')}
               className={`px-6 py-2 rounded-lg transition-all relative ${
                 billingCycle === 'yearly'
                   ? 'bg-blue-600 text-white'
