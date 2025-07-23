@@ -1,0 +1,118 @@
+services:
+  # Main web application
+  - type: web
+    name: momentum-ai-web
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_FIREBASE_API_KEY
+        value: AIzaSyC6ENhmUrrtrN6HFbudthifGwUGSzWih7A
+      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+        value: aviatoronline-6c2b4.firebaseapp.com
+      - key: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+        value: https://aviatoronline-6c2b4-default-rtdb.firebaseio.com
+      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        value: aviatoronline-6c2b4
+      - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+        value: aviatoronline-6c2b4.firebasestorage.app
+      - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+        value: "471392622297"
+      - key: NEXT_PUBLIC_FIREBASE_APP_ID
+        value: 1:471392622297:web:95dca8c181277d3526d0c8
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: TRON_GRID_API_KEY
+        sync: false
+      - key: MAIN_TREASURY_ADDRESS
+        sync: false
+      - key: MAIN_TREASURY_PRIVATE_KEY
+        sync: false
+
+  # Multi-tenant bot engine background worker
+  - type: worker
+    name: momentum-ai-bot-engine
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node -e "
+      const { getMultiTenantBotEngine } = require('./lib/multi-tenant-bot.ts');
+      const botEngine = getMultiTenantBotEngine();
+      console.log('Multi-tenant bot engine started');
+      process.on('SIGTERM', () => {
+        console.log('Shutting down bot engine...');
+        botEngine.destroy();
+        process.exit(0);
+      });
+    "
+    envVars:
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_API_KEY
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: ENCRYPTION_KEY
+
+  # Payment monitoring background worker
+  - type: worker
+    name: momentum-ai-payment-monitor
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node -e "
+      const { getPaymentMonitorService } = require('./lib/payment-monitor.ts');
+      const paymentMonitor = getPaymentMonitorService();
+      paymentMonitor.start();
+      console.log('Payment monitoring service started');
+      process.on('SIGTERM', () => {
+        console.log('Shutting down payment monitor...');
+        paymentMonitor.stop();
+        process.exit(0);
+      });
+    "
+    envVars:
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_API_KEY
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: TRON_GRID_API_KEY
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: MAIN_TREASURY_ADDRESS
+      - fromService:
+          type: web
+          name: momentum-ai-web
+          envVarKey: MAIN_TREASURY_PRIVATE_KEY
