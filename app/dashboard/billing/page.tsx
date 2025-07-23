@@ -21,6 +21,8 @@ export default function Billing() {
   const [paymentAddress, setPaymentAddress] = useState('');
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentStatus, setPaymentStatus] = useState('none');
+  const [txHash, setTxHash] = useState('');
+  const [paymentId, setPaymentId] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -40,10 +42,41 @@ export default function Billing() {
       if (data.success) {
         setPaymentAddress(data.paymentAddress);
         setPaymentAmount(data.amount);
+        setPaymentId(data.paymentId);
         setPaymentStatus('pending');
       }
     } catch (error) {
       console.error('Error creating payment:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmitTx = async () => {
+    if (!txHash.trim()) {
+      alert('Lütfen işlem hash\'ini girin');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/payment/submit-tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user?.uid,
+          txHash: txHash.trim()
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPaymentStatus('submitted');
+        alert('İşlem hash\'i gönderildi! Admin onayı bekleniyor.');
+      }
+    } catch (error) {
+      console.error('Error submitting transaction:', error);
+      alert('Hata oluştu, tekrar deneyin.');
     }
     setLoading(false);
   };
@@ -133,17 +166,22 @@ export default function Billing() {
       </div>
 
       {/* Payment Modal */}
-      {paymentStatus === 'pending' && paymentAddress && (
+      {(paymentStatus === 'pending' || paymentStatus === 'submitted') && paymentAddress && (
         <div className="glass p-6 rounded-xl border-2 border-blue-500/30">
           <div className="text-center mb-6">
             <h3 className="text-xl font-bold text-white mb-2">Pro Plan Ödemesi</h3>
-            <p className="text-slate-400">Aşağıdaki adrese tam olarak {paymentAmount} USDT gönderin</p>
+            <p className="text-slate-400">
+              {paymentStatus === 'pending' 
+                ? `Aşağıdaki sabit adrese tam olarak ${paymentAmount} USDT gönderin`
+                : 'İşlem hash\'i gönderildi. Admin onayı bekleniyor...'
+              }
+            </p>
           </div>
           
           <div className="bg-slate-800/50 p-4 rounded-lg mb-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm text-slate-400 mb-1">TRC20 USDT Adresi:</p>
+                <p className="text-sm text-slate-400 mb-1">Sabit TRC20 USDT Adresi:</p>
                 <p className="text-white font-mono text-sm break-all">{paymentAddress}</p>
               </div>
               <button
@@ -155,26 +193,62 @@ export default function Billing() {
             </div>
           </div>
           
-          <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-4 mb-4">
-            <div className="flex items-start space-x-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
-              <div className="text-yellow-300 text-sm">
-                <p className="font-semibold mb-2">Önemli Uyarılar:</p>
-                <ul className="space-y-1">
-                  <li>• Sadece TRC20 ağından USDT gönderin</li>
-                  <li>• Tam olarak {paymentAmount} USDT gönderin</li>
-                  <li>• Bu adres size özeldir, başkalarıyla paylaşmayın</li>
-                  <li>• Ödeme 30 dakika içinde yapılmalıdır</li>
-                </ul>
+          {paymentStatus === 'pending' && (
+            <>
+              <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-yellow-300 text-sm">
+                    <p className="font-semibold mb-2">Önemli Uyarılar:</p>
+                    <ul className="space-y-1">
+                      <li>• Sadece TRC20 ağından USDT gönderin</li>
+                      <li>• Tam olarak {paymentAmount} USDT gönderin</li>
+                      <li>• Bu sabit adresimizdir, güvenle kullanabilirsiniz</li>
+                      <li>• Ödeme sonrası işlem hash'ini aşağıya girin</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    İşlem Hash'i (Transaction Hash)
+                  </label>
+                  <input
+                    type="text"
+                    value={txHash}
+                    onChange={(e) => setTxHash(e.target.value)}
+                    placeholder="Ödeme yaptıktan sonra işlem hash'ini buraya girin"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-slate-400"
+                  />
+                </div>
+                
+                <button
+                  onClick={handleSubmitTx}
+                  disabled={loading || !txHash.trim()}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 py-3 rounded-lg font-semibold hover:from-emerald-700 hover:to-blue-700 transition-all duration-300 disabled:opacity-50"
+                >
+                  {loading ? 'Gönderiliyor...' : 'İşlem Hash\'ini Gönder'}
+                </button>
+              </div>
+            </>
+          )}
+          
+          {paymentStatus === 'submitted' && (
+            <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-4">
+              <div className="text-center">
+                <CheckCircle className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+                <h4 className="text-blue-400 font-semibold mb-2">İşlem Hash'i Alındı</h4>
+                <p className="text-blue-300 text-sm">
+                  Ödemeniz admin tarafından kontrol ediliyor. Onaylandığında Pro özellikleri aktif olacak.
+                </p>
+                <p className="text-xs text-slate-400 mt-2">
+                  Ödeme ID: {paymentId}
+                </p>
               </div>
             </div>
-          </div>
-          
-          <div className="text-center">
-            <p className="text-slate-400 text-sm">
-              Ödeme onaylandıktan sonra Pro özellikleri otomatik olarak aktif olacaktır.
-            </p>
-          </div>
+          )}
         </div>
       )}
       {/* Current Plan Status */}
