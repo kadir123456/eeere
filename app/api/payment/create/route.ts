@@ -1,49 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { realtimeDb, dbRef, dbSet } from '@/lib/firebase';
-import { getTronPaymentSystem } from '@/lib/tron-payment';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if we're in a server environment
-    if (typeof window !== 'undefined') {
-      return NextResponse.json({ error: 'This endpoint only works on server' }, { status: 500 });
-    }
-    
     const { userId } = await request.json();
     
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    let paymentAddress;
-    try {
-      // Generate unique payment address
-      const tronPayment = getTronPaymentSystem();
-      paymentAddress = await tronPayment.generatePaymentAddress();
-    } catch (error) {
-      console.error('TronWeb error:', error);
-      // Fallback to mock address for development
-      paymentAddress = {
-        address: 'TDemoAddress123456789012345678901234567890',
-        privateKey: 'demo-private-key'
-      };
-    }
+    // Sabit ödeme adresi (senin TRON adresin)
+    const paymentAddress = process.env.MAIN_TREASURY_ADDRESS || 'TYour1MainTronAddressHere123456789012345';
     
-    // Store payment info in Firebase
+    // Benzersiz ödeme ID'si oluştur (takip için)
+    const paymentId = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Ödeme bilgilerini Firebase'e kaydet
     const paymentRef = dbRef(realtimeDb, `users/${userId}/paymentInfo`);
     await dbSet(paymentRef, {
       status: 'pending',
-      pendingAddress: paymentAddress.address,
-      pendingAmount: 20, // $20 USDT for Pro subscription
+      paymentId: paymentId,
+      paymentAddress: paymentAddress,
+      amount: 20, // $20 USDT for Pro subscription
       requestTimestamp: Date.now(),
-      privateKey: paymentAddress.privateKey // Store temporarily for sweeping
+      txHash: null, // Kullanıcı dolduracak
+      adminNotes: null
     });
 
     return NextResponse.json({
       success: true,
-      paymentAddress: paymentAddress.address,
+      paymentAddress: paymentAddress,
+      paymentId: paymentId,
       amount: 20,
-      expiresIn: 30 * 60 * 1000 // 30 minutes
+      message: 'Ödeme talimatları oluşturuldu'
     });
 
   } catch (error) {
