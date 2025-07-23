@@ -25,6 +25,10 @@ export class TronPaymentSystem {
   private tronWeb: any;
 
   constructor() {
+    if (!TronWeb) {
+      throw new Error('TronWeb is not available in this environment');
+    }
+    
     this.tronWeb = new TronWeb({
       fullHost: 'https://api.trongrid.io',
       headers: { 'TRON-PRO-API-KEY': TRON_GRID_API_KEY },
